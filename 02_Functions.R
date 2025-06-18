@@ -133,7 +133,9 @@ pretty_symmetric <- function(range, n = 5){
 PopulationPyramid <- function(dataF = PopTrajectories_Female, 
                               dataM = PopTrajectories_Male, 
                               Region = 1, 
-                              YearUpper = 2048){
+                              YearUpper = 2049){
+  
+  
   
   #Transform into long format and summarise
   LongDataF <- reshape2::melt(dataF, value.name = "Pop", 
@@ -184,39 +186,39 @@ PopulationPyramid <- function(dataF = PopTrajectories_Female,
     Plot <- 
       ggplot(data = JoinedData, aes(x = AgeID)) +
       # --- Main plotting layers (suppress all default legends) ---
-      # Add PI_s of 2048
+      # --- Add PI_s of 2048
       geom_errorbar(data = JoinedData %>% filter(Year == YearUpper) %>% arrange(rev(.width)),
                     stat = "identity", position = "identity", 
                     width = 0, linewidth = 13.5, alpha = alpha_bar,
                     aes(ymin = ymin, ymax = ymax,
                         color = .width),
                     show.legend = FALSE) +
-      ### add current year of 2023
+      # --- add current year of 2023
       geom_bar(data = JoinedData %>% filter(Year == 2024),
                stat = "identity", 
                aes(fill = Year, y = y),
                position = "identity", width = width_obs,
                alpha = alpha_var,
                show.legend = FALSE) +
-      #add a small bar on top of geom bar
+      # --- a small bar on top of geom bar
       geom_errorbar(data = JoinedData %>% filter(Year == 2024),
                     aes(ymin = ymin, ymax = ymax, 
                         col = Year),
                     alpha = alpha_var, linewidth = 1.2, 
                     width = width_obs + 0.1,
                     show.legend = FALSE) +
-      ## add median of future forecasts
+      # --- add median of future forecasts
       geom_bar(data = JoinedData %>% filter(Year == YearUpper),
                stat = "identity", position = "identity",
                aes(col = Year, y = y), fill = NA, width = width_fc,
                linewidth = 0.3,
                show.legend = FALSE) +
-      #add small bar on top of geom bar
+      # --- add small bar on top of geom bar
       geom_errorbar(data = JoinedData %>% filter(Year == YearUpper),
                     aes(ymin = y, ymax = y, col = Year),
                     linewidth = 1.2, width = width_fc + 0.1,
                     show.legend = FALSE)+
-      ## add empty dummy data for joined legend #
+      # --- add empty dummy data for joined legend #
       geom_line(data = legend_data, 
                 aes(x = age_group, y = y, linewidth = legend_label), 
                 group = 1)+
@@ -232,7 +234,6 @@ PopulationPyramid <- function(dataF = PopTrajectories_Female,
       scale_color_manual(values = 
                            c("#4292C6","#97BCDD","#EE6100","black"))+
         scale_fill_manual(values = c("#EE6100"))+
-      #c("#39B7C5","#C8E2B3","#F4A582","black"))+ old colors
       # --- Manual color legend with line-only keys ---
       guides(linewidth = 
                guide_legend(override.aes = 
@@ -247,10 +248,8 @@ PopulationPyramid <- function(dataF = PopTrajectories_Female,
       theme(axis.title = element_blank(),
             axis.text = element_text(size = 20, face = "bold"),
             legend.text = element_text(size = 20),
-                        #plot.margin = margin(t = 1, b = 0),
             panel.border = element_blank(),
             axis.line = element_line(colour ="black"),
-            #axis.line.x = element_line(colour = "black"),
             legend.background = element_blank(),
             legend.position = "inside",
             legend.position.inside = c(0.9, 0.87))+
