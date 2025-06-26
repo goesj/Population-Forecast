@@ -1,3 +1,4 @@
+#### SCRIPT TO RUN Fertility MODEL ############################################
 pacman::p_load("tidyverse","openxlsx","rstan","reshape2")
 
 
@@ -17,14 +18,15 @@ BirthData <-
   select(-c(RegionName.y)) %>% #remove due to different naming structure
   rename(RegionName = RegionName.x) %>% 
   select(-c(AgeID_New, AgeGroup, Sex)) %>% 
-  mutate("ASFR" = Births / Population) %>% 
-  mutate("n_ASFR" = 5*ASFR)
+  mutate("ASFR" = Births / Population) %>% #calculate asfr
+  mutate("n_ASFR" = 5*ASFR) #for calculation of TFR
 
-TFR_Frame <- BirthData %>% #Calculate TFR
-  reframe("TFR" = sum(n_ASFR), 
+#Save data frame of TFR separately
+TFR_Frame <- BirthData %>%
+  reframe("TFR" = sum(n_ASFR), #calculate TFR
           .by = c("RegionNumber", "Year"))
 
-#Calculate Age Propotrion
+#Calculate Age Proportion
 BirthData <- 
   left_join(x = BirthData, 
             y = TFR_Frame, by =c("RegionNumber", "Year")) %>% #add TFR
@@ -37,13 +39,14 @@ StanDat <- list("T" = length(unique(BirthData$Year)),
                 "R" = length(unique(BirthData$RegionNumber)),
                 "y" = BirthData$Births, 
                 "E" = BirthData$Exposure,
-                "M" = 5, TFor = 27) # Forecast until 2050
+                "M" = 5, TFor = 21) # Forecast until 2044
 
+# run model
 LC_Model <- rstan::stan(file = file.path(getwd(),"StanCode/LC_Birth_Poisson.stan"),
                         data =  StanDat, chains = 4, 
                         iter = 5000, warmup = 3000, 
                         thin = 2)
-
+#save results
 save(LC_Model, file = file.path(getwd(),"Results/ASFR_LC_Poi.RData"))
 
 ## Extract forecasts and transform into array for population projection ########
@@ -80,7 +83,7 @@ StanDat <- list("T" = length(unique(BirthData_Train$Year)),
                 "R" = length(unique(BirthData_Train$RegionNumber)),
                 "y" = BirthData_Train$Births, 
                 "E" = BirthData_Train$Population,
-                "M" = 5, TFor = 8)
+                "M" = 5, TFor = 8) #forecast till 2023
 
 ### 3.1.3 Poisson Model 
 LC_Poi_95_15 <- rstan::stan(file = file.path(getwd(),"Stan/LC_BirthPoisson.stan"),
@@ -105,7 +108,7 @@ StanDat_Dir_R <- list("T" = length(unique(OF_Data_Train$Year)),
                       "y" = DataArray_Train,
                       "X_t" = 1:dim(DataArray_Train)[2],
                       "R" = length(unique(OF_Data$RegionNumber)),
-                      "H" = 8)
+                      "H" = 8) #forecast till 2023
 
 
 Dir_Reg_95_15 <- 
@@ -118,7 +121,7 @@ Dir_Reg_95_15 <-
 save(Dir_Reg_Model_AgeRegionInt_95_15, 
      file = file.path(getwd(),"Results/Samples_Dirichlet_Reg_95_15.RData"))
 
-#### 2.2.2 TFR Forecats
+#### 2.2.2 TFR Forecasts
 TFR_Mat <- TFR_Frame %>% 
   filter(Year < 2016) %>% 
   select(RegionNumber, Year, TFR) %>% 
@@ -128,7 +131,7 @@ TFR_Mat <- TFR_Frame %>%
 StanList <- list("T" = ncol(TFR_Mat),
                  "R" = nrow(TFR_Mat), 
                  "y" = TFR_Mat,
-                 "H" = 8) 
+                 "H" = 8)  #forecast till 2023
 
 TFR_AR1_95_15 <- rstan::stan(file = file.path(getwd(),"Stan/AR1_Hier.stan"),
                              data =  StanList, chains = 4, 
