@@ -1,4 +1,6 @@
-pacman::p_load("tidyverse","reshape2","ggplot2", "cowplot","ggdist","openxlsx")
+##### Script to create all graphics within the text ############################
+pacman::p_load("tidyverse","reshape2","ggplot2", "cowplot","ggdist","ggrepel",
+               "paletteer")
 
 
 options(mc.cores = parallel::detectCores())
@@ -335,7 +337,6 @@ NetMigPlot <-
   facet_wrap(~Sex, scales = "free_y", 
              nrow = 2)+
   ylab(label ="Net migration counts")+
-  #scale_color_brewer(palette = "Paired")
   scale_colour_paletteer_d("nbapalettes::suns_city")+
   theme_bw()+
   theme(axis.text = element_text(size = 20, face ="bold"),
