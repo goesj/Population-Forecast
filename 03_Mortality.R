@@ -37,7 +37,7 @@ StanData <- list("T" = max(FemaleDeaths$YearID),
                  "A" = max(FemaleDeaths$AgeID_New),
                  "R" = max(FemaleDeaths$RegionID), 
                  "y" = FemaleDeaths$Deaths, "E" = FemaleDeaths$Population, 
-                 "M" = 5, "TFor" = 33,
+                 "M" = 5, "TFor" = 27, #forecast till 2044
                  "TInd" = FemaleDeaths$YearID, 
                  "RInd" = FemaleDeaths$RegionID,
                  "AInd" = FemaleDeaths$AgeID_New, 
