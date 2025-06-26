@@ -1,12 +1,13 @@
 pacman::p_load("INLA","Matrix")
 
+##### Helper functions needed to run the scripts ###############################
 
 Sum_Stan <- function(samples, digits = 2, ...){
   rstan::summary(object = samples,...)$summary %>% 
     round(digits = digits)
 }
 
-## Script with all helper Functions ###################
+#### Functions for creation of BYM2 Model ######################################
 CARData4Stan <- function(NeighborhoodMatrix){ #Region in Stan Matrix
 N <- nrow(NeighborhoodMatrix) #Amount of Regions
 N_edges <- sum(NeighborhoodMatrix) #Amount of Edges
@@ -58,12 +59,12 @@ CohortIndex <- function(agegroup, time, maxAge, M){
 }
 
 
-#Function for Creation of Leslie Matrix
-Leslie <- function(L, f, SRB, l0,sex="Female") { #Leslie Matrix
+##### Functions for Population Forecasts #######################################
+#Leslie Matrix
+Leslie <- function(L, f, SRB, l0, sex="Female") { 
   n <-  length(L) #Amount of Age Groups
   M <-  matrix(0, nrow = n, ncol =  n) #Leslie Matrix
   
-  #Normieren, da unterschiedlich Breite Altersklassen
   # lower diagonal has survivorship ratios
   for (i in 1:(n-1)) {
     M[i+1,i] <- L[i+1]/L[i] #Person Years Lived
@@ -86,6 +87,7 @@ Leslie <- function(L, f, SRB, l0,sex="Female") { #Leslie Matrix
   return(M)
 }
 
+#Creation of Life Table 
 LifeTableFun <- function(Age, MortalityRate, radix=100000, sex="female"){
 
   LifeTable <- data.frame("Age"=Age,
@@ -116,6 +118,8 @@ LifeTableFun <- function(Age, MortalityRate, radix=100000, sex="female"){
   return(LifeTable) 
 }
 
+#### Functions to Create Population Pyramid ####################################
+## Helper function for nice, symmetric axis labels 
 pretty_symmetric <- function(range, n = 5){
   range_1 <- c(-range[1], range[2])
   range_2 <- c(range[1], -range[2])
