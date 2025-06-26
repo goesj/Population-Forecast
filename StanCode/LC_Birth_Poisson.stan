@@ -15,6 +15,7 @@ data{
   vector[N] log_E = log(E); // log of exposure
   int<lower = 1> Pred = TFor*A*R; // size of prediction vector
 
+  // Helper data for k1 < kT/2 < kT constraint
   int T_2 = T/2; // half way point of time index
   int L_K = (T-4); // length kappa_time_tilde
   int L_K_2 = L_K / 2; // half length of kappa_time_tilde
@@ -47,6 +48,7 @@ transformed parameters{
   vector[T] kappa_time;
   matrix[R, A] deltaMat;
 
+  // Creation of kappa_t paramter (non-centered parameterization)
   kappa_time[1] = 0;
   kappa_time[2] = kappa_tails[1]*sigma_time + drift;
 
@@ -62,7 +64,6 @@ transformed parameters{
 
 }
 model {
-   // Stan only supports variable definitions at top of the block
   vector[N] mu; // Vector of random effects
   int pos = 1;
   for(t in 1:T) for(r in 1:R) for (a in 1:A){
@@ -70,7 +71,7 @@ model {
     pos += 1; //pos = pos + 1
    }
 
-  //Varianzen
+  //standard deviations
   target += student_t_lpdf(sigma_time|5,0,1);
   target += student_t_lpdf(sigma_eps|5,0,1);
   target += student_t_lpdf(sigma_age|5,0,1);
@@ -80,13 +81,14 @@ model {
   target += normal_lpdf(eps|0, 1); //Epsilon Effects
   
   //TIME Effect
-  target += normal_lpdf(kappa_tails[1]|0,1); // first element of RW
+  target += normal_lpdf(kappa_tails[1]|0,1); // first element of kappa_tilde
   target += normal_lpdf(kappa_time_tilde[1]|kappa_tails[1],1); // first element of RW
+  
+  // first half of kappa_time_tilde
+  target += normal_lpdf(kappa_time_tilde[2:(L_K_2)]|kappa_time_tilde[1:(L_K_2-1)],1); 
+  target += normal_lpdf(kappa_tails[2]|kappa_time_tilde[L_K_2],1); // middle element of constraint
 
-  target += normal_lpdf(kappa_time_tilde[2:(L_K_2)]|kappa_time_tilde[1:(L_K_2-1)],1); // first half of kappa_time_tilde
-
-  target += normal_lpdf(kappa_tails[2]|kappa_time_tilde[L_K_2],1); // middle element of order constraint
-
+  // second half of kappa_time_tilde
   target += normal_lpdf(kappa_time_tilde[L_K_2+1]|kappa_tails[2],1); // first half
   target += normal_lpdf(kappa_time_tilde[(L_K_2+2):(L_K)]|kappa_time_tilde[(L_K_2+1):(L_K-1)],1); // second half of kappa_time_tilde
   target += normal_lpdf(kappa_tails[3]|kappa_time_tilde[L_K],1); // last element of RW
@@ -101,7 +103,7 @@ model {
      target += normal_lpdf(deltaMat_tilde[, a]|0, 10);
   }
 
-  target += poisson_log_lpmf(y| log_E + mu + eps*sigma_eps);
+  target += poisson_log_lpmf(y| log_E + mu + eps*sigma_eps); // log likelihood
 
 
 } generated quantities {
