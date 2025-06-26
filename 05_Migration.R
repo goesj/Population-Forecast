@@ -1,15 +1,15 @@
-pacman::p_load("tidyverse","openxlsx","rstan",
-               "lme4","MuMIn","ggdist")
+#### SCRIPT TO RUN MIGRATION MODEL ############################################
+pacman::p_load("tidyverse","openxlsx","rstan","lme4","ggdist")
 
 
 options(mc.cores = parallel::detectCores())
 source("02_Functions.R")
 
 load(file = file.path(getwd(),"Data/TotalData.RData"))
-age_groups_new <- c(paste0(0:16*5, "-", 1:17*5-1), "85+")
+age_groups_new <- c(paste0(0:16*5, "-", 1:17*5-1), "85+") #helper function
 
 
-#### Calculate net migration rates ############################################
+#### Create data with net migration counts #####################################
 
 #First calculate total population counts 
 PopCounts_Total <- 
@@ -24,10 +24,6 @@ Female_Mig_Data <-
   inner_join(x = ., 
              y =  select(MigCounts_Female_Tot, -RegionName),
              by = c("RegionNumber", "Year")) %>%
-  mutate(PopCountsRisk = Population - NetMig) %>% 
-  mutate(NetMigRate = NetMig / PopCountsRisk,
-         InMigRate = InMig / PopCountsRisk,
-         OutMigRate = OutMig / PopCountsRisk) %>% 
   mutate(RegionID = match(RegionNumber, unique(RegionNumber)),
          YearID = match(Year, unique(Year)))
 
@@ -37,10 +33,6 @@ Male_Mig_Data <-
   inner_join(x = ., 
              y =  select(MigCounts_Male_Tot, -RegionName),
              by = c("RegionNumber", "Year")) %>% 
-  mutate(PopCountsRisk = Population - NetMig) %>% 
-  mutate(NetMigRate = NetMig / PopCountsRisk,
-         InMigRate = InMig / PopCountsRisk,
-         OutMigRate = OutMig / PopCountsRisk) %>% 
   mutate(RegionID = match(RegionNumber, unique(RegionNumber)),
          YearID = match(Year, unique(Year)))
 
@@ -53,17 +45,18 @@ model_male_counts <- lmer(InMig ~ NetMig + (1|RegionNumber) -1 ,
                           data = Male_Mig_Data)
 
 ###### 02_ Female  #############################################################
-#### Forecasting Counts ####
+#Create Net Migration Count Matrix
 NetMigMatF_Counts <- reshape2::acast(Female_Mig_Data, 
                                      formula = RegionID ~ Year, 
                                      value.var = "NetMig")
 
+#Stan Data
 StanDat_F_Counts <- list("R" = nrow(NetMigMatF_Counts),
                   "T" = ncol(NetMigMatF_Counts), 
                   "y" = NetMigMatF_Counts, 
-                  "H" = 27)
+                  "H" = 21) #forecasts till 2044
 
-
+#Run Model
 AzRa_F_Skew_N_Counts <- rstan::stan(file = file.path(getwd(),"StanCode/AzozeRaftery_SkewNormal_Total.stan"), 
                                     chains = 4, iter = 3000, warmup = 2000, 
                                     data = StanDat_F_Counts)
@@ -92,19 +85,21 @@ save(AzRa_F_Skew_N_Counts,
      file = file.path(getwd(),"Results/AzRa_Skew_Counts.RData"))
 
 
-######## 04_Calculate Out Migration from relationship ##########################
+######## 04_Create Array of net migration counts for pop forecast ##############
 load(file.path(getwd(),"Results/AzRa_Skew_Counts.RData"))
 
-
+## Get Forecasts of net migration counts
 NetMig_Count_For_M <- rstan::extract(AzRa_M_Skew_N_Counts_H, pars ="y_for")$y_for %>% 
-  aperm(perm = c(3,2,1))
+  aperm(perm = c(3,2,1)) #transpose into 
 
 NetMig_Count_For_F <- rstan::extract(AzRa_F_Skew_N_Counts_H, pars ="y_for")$y_for %>% 
   aperm(perm = c(3,2,1))
 
+#Transform into long format
 NetMig_Count_For_F_Long <- 
   NetMig_Count_For_F %>% 
-  reshape2::melt(value.name = "NetMigCounts", varnames = c("Year","Region","Iteration")) %>% 
+  reshape2::melt(value.name = "NetMigCounts", 
+                 varnames = c("Year","Region","Iteration")) %>% 
   reframe(ggdist::mean_qi(NetMigCounts), .by = c(Year,Region)) %>% 
   mutate("Year" = Year + 2023,
          "RegionNumber" = unique(Female_Mig_Data$RegionNumber)[Region]) %>% 
@@ -112,7 +107,8 @@ NetMig_Count_For_F_Long <-
 
 NetMig_Count_For_M_Long <- 
   NetMig_Count_For_M %>% 
-  reshape2::melt(value.name = "NetMigCounts", varnames = c("Year","Region","Iteration")) %>% 
+  reshape2::melt(value.name = "NetMigCounts", 
+                 varnames = c("Year","Region","Iteration")) %>% 
   reframe(ggdist::mean_qi(NetMigCounts), .by = c(Year,Region)) %>% 
   mutate("Year" = Year + 2023,
          "RegionNumber" = unique(Female_Mig_Data$RegionNumber)[Region]) %>% 
@@ -161,37 +157,36 @@ AzRa_F_Skew_N_Counts_00_19 <-
               data = StanDat_F_Counts_00_19)
 
 ####### 05_ Age Migration Schedule #############################################
-MigPop_Data_Female <- 
+MigPop_Data_Female <-  #create helper data
   inner_join(x = AgeSpecific_Mig_Female, 
              y = filter(PopCounts, Sex == "female"), 
-             by = c("Year", "RegionNumber", "AgeID_New","AgeGroup_New", "RegionName")) %>% 
-  mutate("PopCountsRisk" = Population - Net) %>% 
-  mutate("OutMigRate" = Out/PopCountsRisk,
-         "InMigRate" = In/PopCountsRisk) %>% 
-  mutate("AgeGroup_New" = factor(AgeGroup_New, levels = unique(AgeGroup_New)))
+             by = c("Year", "RegionNumber", "AgeID_New",
+                    "AgeGroup_New", "RegionName")) %>% 
+  mutate("AgeGroup_New" = factor(AgeGroup_New, 
+                                 levels = unique(AgeGroup_New)))
 
 
 MigPop_Data_Male <- 
   inner_join(x = AgeSpecific_Mig_Male, 
              y = filter(PopCounts, Sex == "male"),
-             by = c("Year", "RegionNumber", "AgeID_New","AgeGroup_New", "RegionName")) %>% 
-  mutate("PopCountsRisk" = Population - Net) %>% 
-  mutate("OutMigRate" = Out/PopCountsRisk,
-         "InMigRate" = In/PopCountsRisk) %>% 
-  mutate("AgeGroup_New" = factor(AgeGroup_New, levels = unique(AgeGroup_New)))
+             by = c("Year", "RegionNumber", "AgeID_New",
+                    "AgeGroup_New", "RegionName")) %>% 
+  mutate("AgeGroup_New" = factor(AgeGroup_New, 
+                                 levels = unique(AgeGroup_New)))
 
 
 ############ Create data of Migration Schedules ########################
 RaData_Male <- 
   MigPop_Data_Male %>% 
-  mutate("Ra_Out" = Out/sum(Out),
+  mutate("Ra_Out" = Out/sum(Out), #calculation of migration schedule
          "Ra_In" = In/sum(In),
          .by = c(Year, RegionNumber)) 
 
 #Matrix of out-migration Schedue
 Ra_Out_Matrix_Male <- 
   RaData_Male %>% 
-  reshape2::acast(formula = RegionNumber ~ Year ~ AgeID_New, value.var = "Ra_Out") #transform into array
+  reshape2::acast(formula = RegionNumber ~ Year ~ AgeID_New, 
+                  value.var = "Ra_Out") #transform into array
 
 #Problem, Ra cannot be zero since Dirichlet likelihood does not allow that. 
 #Therefore add small value to Ra and renormalize
@@ -236,11 +231,13 @@ RaData_Female <-
 
 Ra_Out_Matrix_Female <- 
   RaData_Female %>% 
-  reshape2::acast(formula = RegionNumber ~ Year ~ AgeID_New, value.var = "Ra_Out") #transform into array
+  reshape2::acast(formula = RegionNumber ~ Year ~ AgeID_New, 
+                  value.var = "Ra_Out") #transform into array
 
 Ra_In_Matrix_Female <- 
   RaData_Female %>% 
-  reshape2::acast(formula = RegionNumber ~ Year ~ AgeID_New, value.var = "Ra_In") #transform into array
+  reshape2::acast(formula = RegionNumber ~ Year ~ AgeID_New, 
+                  value.var = "Ra_In") #transform into array
 
 RC_List_Female_Out <- 
   list("y" = Ra_Out_Matrix_Female, 
