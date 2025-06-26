@@ -1,4 +1,4 @@
-pacman::p_load("INLA","Matrix","melt","rstan","ggdist","tidyverse")
+pacman::p_load("INLA","Matrix","reshape2","rstan","ggdist","tidyverse")
 
 ##### Helper functions needed to run the scripts ###############################
 
