@@ -1,4 +1,4 @@
-### Population Total ###
+#### SCRIPT TO RUN POPULATION FORECASTS #######################################
 pacman::p_load("tidyverse","openxlsx","rstan","reshape2",
                "ggdist","lme4")
 
@@ -13,41 +13,31 @@ AgesUpper <- 0:17*5
 ## Combine all of migration, fertility and mortality data to obtain population estimates##
 
 ################################################################################
-####              --- NET MIGRATION TOTALS ---                            ######
+####              --- Population Forecast ---                            ######
 ################################################################################
+### Note, run scripts 03 - 05 before to obtain samples needed 
 load(file = file.path(getwd(),"Results/MortalityForecasts.RData")) #Mortality Rates
 load(file = file.path(getwd(),"Results/FertilityForecasts.RData")) #Mortality Rates
 load(file = file.path(getwd(),"Results/MigrationForecasts_Counts.RData")) # Migration Rates
 load(file = file.path(getwd(),"Results/Ra_Samples_Totals.RData")) #Estimates of Age-Migration Schedule
 
 #### POPULATION PROJECTION with YEARLY migration and yearly Ra #################
-InMig_Count_Array_M <- InMig_Count_Array_F <- OutMig_Count_Array_F <- 
-  OutMig_Count_Array_M <- array(0, 
-                                dim = dim(NetMig_Count_For_F),
-                                dimnames = dimnames(NetMig_Count_For_F))
 
-
-Iter <- 4000
+## helper values
+Iter <- 4000 #set amount of iterations, how many trajectories are to be created
 n_AgeGroups <- length(unique(PopCounts$AgeGroup_New))
 H <- length(seq(2024,2044,5))
-R <- 13
+R <- 13 #number of regions
+UniqueRegions <- unique(PopCounts$RegionNumber) #get numbers of regions
 
+
+#Create empty array of population trajectories
 PopTrajectories_Male <- PopTrajectories_Female <- 
   array(data = 0, dim = c(n_AgeGroups,  H, 13, Iter),
         dimnames=list("age_group" = age_groups_new,
                       "Year" = seq(2024,2044,5),
                       "RegionNumber" = unique(PopCounts$RegionNumber),
                       "Iteration" = 1:Iter))
-
-#Natural Population (w/o Migration)
-PopTrajectories_Male_Nat <- 
-  PopTrajectories_Female_Nat <- 
-  array(data = 0, dim = c(n_AgeGroups,  H, 13, Iter),
-        dimnames=list("age_group" = age_groups_new,
-                      "Year" = seq(2024,2044,5),
-                      "RegionNumber" = unique(PopCounts$RegionNumber),
-                      "Iteration" = 1:Iter))
-
 
 ## Last Observed Population Data
 Pop_Array_2024 <- PopCounts %>% 
@@ -56,24 +46,29 @@ Pop_Array_2024 <- PopCounts %>%
   reshape2::acast(formula = AgeGroup_New ~ RegionNumber~Sex, 
                   value.var = "Population")
 
-# Add population of 2023 to Pop Trajectories array (as starting population for Leslie Matrix)
+# Add population of 2024 to Pop Trajectories array (as starting population for Leslie Matrix)
 PopTrajectories_Female[,1,,] <- Pop_Array_2024[,,1] #Females
 PopTrajectories_Male[,1,,] <- Pop_Array_2024[,,2] #Males
 
 PopTrajectories_Female_Nat[,1,,] <- Pop_Array_2024[,,1] #Females
 PopTrajectories_Male_Nat[,1,,] <- Pop_Array_2024[,,2] #Males
 
+#### migration helpers ###
+#Create empty migration array to total in and total out migration
+InMig_Count_Array_M <- InMig_Count_Array_F <- OutMig_Count_Array_F <- 
+  OutMig_Count_Array_M <- array(0, 
+                                dim = dim(NetMig_Count_For_F),
+                                dimnames = dimnames(NetMig_Count_For_F))
 
-UniqueRegions <- unique(PopCounts$RegionNumber)
-
-# Empty Array for age specific migration rates
+# Empty Array for age specific migration rates (out, in and net) ########
 AS_Mig_Counts_F <- AS_Mig_Counts_M <- 
-  array(0, dim = c(n_AgeGroups, H-1, 13, Iter, 3),
+  array(0, dim = c(n_AgeGroups, H-1, 13, Iter, 3), #
         dimnames = list(age_groups_new, 
                         seq(2029,2044,5),
                         unique(PopCounts$RegionNumber), 
                         1:Iter, 
                         c("InMig", "OutMig", "NetMig"))) #one year less
+
 
 ### Calculate mixed effects model to transform net migration into in and out migraion
 PopCounts_Total <- 
@@ -115,10 +110,11 @@ model_female_counts <- lmer(InMig ~ NetMig  + (1|RegionNumber) -1 ,
 model_male_counts <- lmer(InMig ~ NetMig + (1|RegionNumber) -1 ,
                           data = Male_Mig_Data)
 
+## get coefficients
 Coef_F <- coef(model_female_counts)$RegionNumber
 Coef_M <- coef(model_male_counts)$RegionNumber
 
-
+#progress bar
 pb <- txtProgressBar(min = 1, max = Iter, style = 3)
 
 for(s in 1:Iter){ #all iterations
@@ -128,7 +124,6 @@ for(s in 1:Iter){ #all iterations
     for(r in 1:R){
       
       ##### 1.) Calculate Migration Counts 
-      
       ### 1.1 Females 
       #In Migration for the next five years
       InMig_Count_Array_F[(j-3):(j+1), r, s] <-  
@@ -182,7 +177,6 @@ for(s in 1:Iter){ #all iterations
       
       
       ##### 2. ) Forecast the Population 
-      
       #### 2.1 Females 
       LifeTable_F <- LifeTableFun(Age = AgesUpper,
                                   MortalityRate = Mort_Rate_Array_F[,j + 7, r, s], 
@@ -215,21 +209,6 @@ for(s in 1:Iter){ #all iterations
                (PopTrajectories_Female[,h, r, s])+ AS_Mig_Counts_F[,h, r, s, 3]/2) %>% first() #Male Births
       
       PopTrajectories_Male[1,h+1, r, s] <- BM + AS_Mig_Counts_M[1, h, r, s,3]/2
-      
-      
-      
-      #### Natural Population ###
-      PopTrajectories_Female_Nat[,h + 1, r, s] <- 
-        Leslie(L = LifeTable_F[,"Lx"], f = FertRates, SRB = SRB, l0 = LifeTable_F[1,"lx"], 
-               sex ="Female")%*%PopTrajectories_Female_Nat[,h, r, s]
-      
-      PopTrajectories_Male_Nat[,h + 1, r, s] <- 
-        Leslie(L = LifeTable_M[,"Lx"], f = FertRates, SRB = SRB, l0 = LifeTable_M[1,"lx"], 
-               sex ="male")%*%PopTrajectories_Male_Nat[,h, r, s]
-      
-      PopTrajectories_Male_Nat[1,h+1, r, s] <- 
-        (Leslie(L=LifeTable_F[,"Lx"], f = FertRates, SRB = SRB, l0 = LifeTable_F[1,"lx"], sex="Male")%*%
-           PopTrajectories_Female_Nat[,h, r, s]) %>% first() #Male Births
       
     }
   }
