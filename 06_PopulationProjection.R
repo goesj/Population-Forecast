@@ -1,6 +1,5 @@
 #### SCRIPT TO RUN POPULATION FORECASTS #######################################
-pacman::p_load("tidyverse","openxlsx","rstan","reshape2",
-               "ggdist","lme4")
+pacman::p_load("tidyverse","reshape2","lme4")
 
 
 options(mc.cores = parallel::detectCores())
