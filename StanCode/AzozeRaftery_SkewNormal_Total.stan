@@ -54,16 +54,6 @@ functions {
     return(z);
   }
   
-  // real mean_normal_skewed(real location, real scale, real gamma){
-  //     // see Fernandez, Steel 1998 (Formula 5)
-  //    real absMoment = sqrt(2/pi()); // E(|X|) central t
-  //    
-  //    real scaleFactor = (square(gamma)+(-1/square(gamma)))/(gamma+1/gamma); 
-  //    
-  //    real Mean_scale_location = ((absMoment*scaleFactor)*scale)+location; 
-  //    
-  //    return(Mean_scale_location); // return mean of skewed distribution
-  // }
 }
 
 // The input data is a vector 'y' of length 'N'.

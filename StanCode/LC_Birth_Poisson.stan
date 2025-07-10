@@ -25,7 +25,7 @@ parameters{
 
   // Age Parameters
   vector[A] alpha_age; // Age Specific Isntercept
-  unit_vector[A] beta_age1; //Unit of 1
+  unit_vector[A] beta_age; //Unit of 1
 
   // Time Parameter
   vector<lower=0>[T-4] kappa_time_tilde; //
@@ -67,7 +67,7 @@ model {
   vector[N] mu; // Vector of random effects
   int pos = 1;
   for(t in 1:T) for(r in 1:R) for (a in 1:A){
-    mu[pos]=alpha_age[a]+beta_age1[a]*kappa_time[t]+deltaMat[r, a];
+    mu[pos]=alpha_age[a]+beta_age[a]*kappa_time[t]+deltaMat[r, a];
     pos += 1; //pos = pos + 1
    }
 
@@ -97,7 +97,7 @@ model {
   //Age Effect
   target += normal_lpdf(alpha_age|0, sigma_age); // Prior on alpha_x
 
-  target += normal_lpdf(beta_age1|0, 5); // unit vector by construction
+  target += normal_lpdf(beta_age|0, 5); // unit vector by construction
   // Age Region Interaction effect
   for(a in 1:A){
      target += normal_lpdf(deltaMat_tilde[, a]|0, 10);
@@ -119,7 +119,7 @@ model {
   int pos_f = 1;
   // get mu for insample fit
   for(t in 1:T) for(r in 1:R) for (a in 1:A){
-    mu_rep[pos]=exp(alpha_age[a]+beta_age1[a]*kappa_time[t]+
+    mu_rep[pos]=exp(alpha_age[a]+beta_age[a]*kappa_time[t]+
                         deltaMat[r, a]+
                         normal_rng(0,1)*sigma_eps);
 
@@ -128,7 +128,7 @@ model {
     }
     y_rep[pos] = poisson_rng(mu_rep[pos]*E[pos]);
 
-    log_like_y[pos] = poisson_log_lpmf(y[pos]|alpha_age[a]+beta_age1[a]*kappa_time[t]+
+    log_like_y[pos] = poisson_log_lpmf(y[pos]|alpha_age[a]+beta_age[a]*kappa_time[t]+
                                               deltaMat[r, a]+
                                               eps[pos]*sigma_eps+
                                               log_E[pos]);
@@ -147,7 +147,7 @@ model {
   //See that it has the same structure as loop in model block (else predictions are not comparable)
   for (h in 1:TFor) for (r in 1:R) for (a in 1:A)  {
     mufor[pos_f] = alpha_age[a] +
-                   beta_age1[a] * kappa_time_pred[h]+
+                   beta_age[a] * kappa_time_pred[h]+
                    deltaMat[r, a]+
                    normal_rng(0,1) * sigma_eps;
     pos_f += 1;

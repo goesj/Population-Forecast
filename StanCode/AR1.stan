@@ -12,10 +12,7 @@ parameters {
   real<lower = 0> s; // global hyperparameter for group specific variance
 
   // AR(1) parameter
-  vector<lower=-1, upper = 1>[R] phi;
-  //real m_phi;
-  //real <lower = 0> s_phi;
-
+  vector<lower=-1, upper = 1>[R] a_r;
   vector<lower=0>[R] sigma;
 }
 transformed parameters{
@@ -31,12 +28,12 @@ model {
   target += normal_lpdf(sigma|0,5);
 
   // prior of AR parameter
-  target += normal_lpdf(phi|0, 2);
+  target += normal_lpdf(a_r|0, 2);
 
 
   for(r in 1:R){ // for all regions
     target += normal_lpdf(y[r,1]|mu[r], sigma[r]);
-    target += normal_lpdf(y[r,2:T]|mu[r]+phi[r]*(y[r,1:(T-1)]-mu[r]), sigma[r]);
+    target += normal_lpdf(y[r,2:T]|mu[r]+a_r[r]*(y[r,1:(T-1)]-mu[r]), sigma[r]);
   }
 }
 generated quantities{
@@ -51,8 +48,8 @@ generated quantities{
      y_rep[r, 1] = mu[r] + std_normal_rng()*sigma[r];
     pos += 1; //pos = pos + 1
       for(t in 2:T){
-        loglike[pos] = normal_lpdf(y[r, t]|mu[r]+phi[r]*(y[r,t-1]-mu[r]), sigma[r]);
-        y_rep[r, t] = mu[r]+phi[r]*(y[r,t-1]-mu[r])+std_normal_rng()*sigma[r];
+        loglike[pos] = normal_lpdf(y[r, t]|mu[r]+a_r[r]*(y[r,t-1]-mu[r]), sigma[r]);
+        y_rep[r, t] = mu[r]+a_r[r]*(y[r,t-1]-mu[r])+std_normal_rng()*sigma[r];
         pos += 1; //pos = pos + 1
       }
     }
@@ -60,9 +57,9 @@ generated quantities{
 
   // Forecasted Values
   for(r in 1:R){
-    y_for[r,1] = mu[r]+phi[r]*(y[r,T]-mu[r]) + std_normal_rng()*sigma[r];
+    y_for[r,1] = mu[r]+a_r[r]*(y[r,T]-mu[r]) + std_normal_rng()*sigma[r];
     for(h in 2:H){
-      y_for[r,h] = mu[r]+phi[r]*(y_for[r,h-1]-mu[r]) + std_normal_rng()*sigma[r];
+      y_for[r,h] = mu[r]+a_r[r]*(y_for[r,h-1]-mu[r]) + std_normal_rng()*sigma[r];
     }
   }
 } 

@@ -14,7 +14,7 @@ parameters {
   matrix[R-1, A] deltaMat_tilde; // Matrix of  age-region specific effects
 }
 transformed parameters {
-  array[R, T] vector[A] eta; // array of mean vectors
+  array[R, T] vector[A] eta; // linear predictor
   matrix[R, A] deltaMat; 
   
   deltaMat[, 1] = rep_vector(0, R); // Corner constraint on first age group 
@@ -46,7 +46,7 @@ model {
 
 generated quantities{
   vector[R*T] loglike; // vector of log likelihood for WAIC
-  array[R, T] vector[A] alpha = exp(eta); // Parameters of Dirichlet for PPC 
+  array[R, T] vector[A] psi = exp(eta); // Parameters of Dirichlet for PPC 
   array[R, T] vector[A] Y_Rep; 
 
   array[R, H] vector[A] Y_For; 
@@ -58,7 +58,7 @@ generated quantities{
   for(t in 1:T) for(r in 1:R){
     loglike[pos] = dirichlet_lpdf(y[r, t] | exp(eta[r, t]));
     
-    Y_Rep[r,t] = dirichlet_rng(alpha[r, t]); // create new values of Y for PPC
+    Y_Rep[r,t] = dirichlet_rng(psi[r, t]); // create new values of Y for PPC
     
     pos += 1; //pos = pos + 1 
   }

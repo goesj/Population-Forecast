@@ -69,9 +69,9 @@ parameters{
 } 
 transformed parameters {
   vector[R] convolved_re; // BYM2 Region Effect
-  vector[R] phi_region; 
+  vector[R] nu_region; 
   convolved_re =  sqrt(1 - rho) * v + sqrt(rho / scaling_factor) * u;
-  phi_region = convolved_re*sigma_BYM2;
+  nu_region = convolved_re*sigma_BYM2;
 } 
 model {
   vector[N] mu; // Vector of random effects
@@ -79,7 +79,7 @@ model {
   for(t in 1:T) for(r in 1:R) for (a in 1:A){
     mu[pos]=alpha_age[a]+
     beta_age1[a]*kappa_time[t]+beta_age2[a]*gamma_cohort[k[pos]]+
-    phi_region[r];
+    nu_region[r];
     pos += 1; //pos = pos + 1 
    }
   
@@ -147,13 +147,13 @@ model {
   for(t in 1:T) for(r in 1:R) for (a in 1:A){
     lambdahat[pos]=exp(alpha_age[a]+beta_age1[a]*kappa_time[t]+
                        beta_age2[a]*gamma_cohort[k[pos]]+
-                        phi_region[r]+
+                        nu_region[r]+
                         log_E[pos]+normal_rng(0,1)*sigma_eps);
                         
                         
     MHat[pos] = exp(alpha_age[a]+beta_age1[a]*kappa_time[t]+
                        beta_age2[a]*gamma_cohort[k[pos]]+
-                        phi_region[r]+
+                        nu_region[r]+
                         eps[pos]*sigma_eps);
 
     pos += 1; //pos = pos + 1 
@@ -181,7 +181,7 @@ model {
     mufor[pos_f] = alpha_age[a] + 
                    beta_age1[a] * kappa_time_pred[t]+
                    beta_age2[a] * gamma_cohort_final[kFor]+
-                   phi_region[r]+
+                   nu_region[r]+
                    sigma_eps*normal_rng(0,1);
     pos_f += 1;
   }
