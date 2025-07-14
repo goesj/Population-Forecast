@@ -1,7 +1,6 @@
 pacman::p_load("tidyverse","openxlsx")
 
 
-options(mc.cores = parallel::detectCores())
 ### Loading all the dava and saving the results ###############################
 #Helper function
 age_groups_new <- c(paste0(0:16*5, "-", 1:17*5-1), "85+")
@@ -70,19 +69,19 @@ AgeIDHelper <- data.frame("AgeGroup" = unique(PopCounts_24$Age),
 #Data Clensing
 PopCounts_24 <- PopCounts_24 %>% 
   select(-c(Nummer, Kreis)) %>% 
-  mutate(RegionName = stringr::str_trim(RegionName)) %>%  #Remove WhiteSpaces
+  mutate(RegionName = stringr::str_trim(RegionName)) %>%  #Remove white Spaces
   filter(nchar(RegionNumber) == 5) %>% #only regions
-  filter(Age != "Insgesamt") %>% 
-  select(-Total) %>% 
+  filter(Age != "Insgesamt") %>% #remove age total
+  select(-Total) %>% #remove total column
   mutate("AgeID" = match(Age, unique(Age))) %>% 
-  mutate("AgeID_New" = AgeIDHelper$AgeIDNew[AgeID]) %>% 
-  reframe("male" = sum(male), 
+  mutate("AgeID_New" = AgeIDHelper$AgeIDNew[AgeID]) %>% #create Age ID
+  reframe("male" = sum(male), #sum over ages
           "female" = sum(female), 
           .by = c(Year, RegionNumber, RegionName, AgeID_New)) %>% 
   pivot_longer(cols = 5:6, names_to = "Sex", values_to = "Population") %>% 
   mutate("AgeGroup_New" = age_groups_new[AgeID_New])
 
-
+#create joint population data
 PopCounts_Total <- 
   full_join(x = PopCounts_17, 
             y = PopCounts_24) 
@@ -91,7 +90,6 @@ PopCounts <-
   PopCounts_Total %>% 
    mutate("PopLag" = lag(Population),
           .by = c(RegionNumber, AgeGroup_New, Sex)) %>%
-   #filter(Year > 2000) %>% 
    mutate("PopLag" = rnorm(n = n(), mean = PopLag, sd = 0.001)) %>% # add small noise, otherwise if pop stays the same division by 0 
    mutate("Exposure" = (Population - PopLag ) / log(Population/PopLag)) %>% 
    filter(grepl("094", RegionNumber)) %>% #only Upper Franconia
@@ -136,7 +134,7 @@ DF <- DeathW %>% pivot_longer(., cols = -(1:5),
   mutate("Year" = as.numeric(Year)) %>% 
   mutate("Sex" = "female")
 
-
+##Create joint data frame of death counts (males and females)
 DeathCounts <- 
   full_join(x = DM, 
             y = DF) %>% 
@@ -170,14 +168,6 @@ BirthCounts <- Births %>%
   mutate("AgeID" = match(AgeGroup, unique(AgeGroup))) %>% 
   mutate("AgeGroup_New" = AgeGroupNames[AgeID]) %>% 
   filter(grepl("094", RegionNumber)) #only Upper Franconia
-
-
-#Question, what to do with the NA's. NA's only below 3 birhts after 2021
-Births %>% reframe("NA's" = sum(is.na(Births)))
-# No missing value in Oberfranken
-Births %>% filter(Year > 2000) %>% 
-  filter(grepl("094",RegionNumber)) %>% 
-  reframe("Prop_NA" = sum(is.na(Births))/n() * 100)
 
 
 ######## 04_Migration ##########################################################
@@ -281,17 +271,17 @@ MigFemaleData_Imp <-
   select(-RegionNumber) %>% 
   select(-In)
 
-
+## Define impuation method
 meth <- mice::make.method(MigFemaleData_Imp)
 meth["Out"] <- "cart"
 
 pred <- mice::make.predictorMatrix(MigFemaleData_Imp)
 
+#run single imputation
 Im_Fem_Mig <- mice::mice(MigFemaleData_Imp, 
                          meth = meth, pred = pred, m = 1)
 
-Im_Fem_Mig$imp
-
+#Add imputed data to data frame
 AgeSpecific_Mig_Female[is.na(AgeSpecific_Mig_Female$Out),"Out"] <- Im_Fem_Mig$imp$Out
 AgeSpecific_Mig_Female[,"In"] <- AgeSpecific_Mig_Female$Net + AgeSpecific_Mig_Female$Out
 
@@ -311,8 +301,6 @@ pred <- mice::make.predictorMatrix(MigMaleData_Imp)
 
 Im_Male_Mig <- mice::mice(MigMaleData_Imp, 
                          meth = meth, pred = pred, m = 1)
-
-Im_Male_Mig$imp
 
 AgeSpecific_Mig_Male[is.na(AgeSpecific_Mig_Male$Out),"Out"] <- Im_Male_Mig$imp$Out
 AgeSpecific_Mig_Male[,"In"] <- AgeSpecific_Mig_Male$Net + AgeSpecific_Mig_Male$Out
@@ -364,7 +352,7 @@ MigCounts_Male_Tot_2000_10 <-
          "InMig" = "InMale") 
 
 
-###### CALCULATE TOTAL MIGRATION Net #####################################
+###### CALCULATE TOTAL MIGRATION  #####################################
 #Calculation of total net migration for each region from 2000 - 2023
 MigCounts_Female_Tot <- 
   AgeSpecific_Mig_Female %>% 
