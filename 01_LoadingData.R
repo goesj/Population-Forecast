@@ -116,11 +116,11 @@ Population_Old_Fem <-
 ################### 02_Deaths ##################################################
 DeathM <- openxlsx::read.xlsx(xlsxFile = file.path(getwd(),
                                                    "Data/BY_12613(Deaths)_2000-17.xlsx"),
-                              sheet = "SterbefälleMännlich", colNames = TRUE)
+                              sheet = "DeathsMale", colNames = TRUE)
 
 DeathW <- openxlsx::read.xlsx(xlsxFile = file.path(getwd(),
                                                    "Data/BY_12613(Deaths)_2000-17.xlsx"),
-                              sheet = "SterbefälleWeiblich", colNames = TRUE)
+                              sheet = "DeathsFemale", colNames = TRUE)
 
 DM <- DeathM %>% pivot_longer(., cols = -(1:5),
                               names_to = "AgeGroup", 
