@@ -303,6 +303,32 @@ InMigSchedulePlot_F <-
 
 #### 6. Net Migration Rates ####################################################
 pacman::p_load("paletteer")
+
+#First calculate total population counts 
+PopCounts_Total <- 
+  PopCounts %>% 
+  reframe("Population" = sum(Population), 
+          .by = c(Year, RegionNumber, RegionName, Sex))
+
+### Combine Both Datasets ###
+Female_Mig_Data <- 
+  PopCounts_Total %>% 
+  filter(Sex == "female") %>% 
+  inner_join(x = ., 
+             y =  select(MigCounts_Female_Tot, -RegionName),
+             by = c("RegionNumber", "Year")) %>%
+  mutate(RegionID = match(RegionNumber, unique(RegionNumber)),
+         YearID = match(Year, unique(Year)))
+
+Male_Mig_Data <- 
+  PopCounts_Total %>% 
+  filter(Sex == "male") %>% 
+  inner_join(x = ., 
+             y =  select(MigCounts_Male_Tot, -RegionName),
+             by = c("RegionNumber", "Year")) %>% 
+  mutate(RegionID = match(RegionNumber, unique(RegionNumber)),
+         YearID = match(Year, unique(Year)))
+
 NetMigPlot <- 
   rbind(Male_Mig_Data, 
         Female_Mig_Data) %>% 
@@ -319,10 +345,6 @@ NetMigPlot <-
         legend.title = element_text(size = 20, face ="bold"),
         legend.position = "none")
 
-ggsave(filename = file.path(getwd(),"Pictures/NetMig_OF.pdf"), 
-       plot = NetMigPlot,
-       device = "pdf", dpi = 500, 
-       width = 16, height = 12)
 
 
   
