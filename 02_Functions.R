@@ -7,26 +7,34 @@ Sum_Stan <- function(samples, digits = 2, ...){
     round(digits = digits)
 }
 
-#### Functions for creation of BYM2 Model ######################################
+#### Functions for creation of BYM2 Model ##############################
+########
+# Transform Neighborhood Matrix into List for Stan
 CARData4Stan <- function(NeighborhoodMatrix){ #Region in Stan Matrix
-N <- nrow(NeighborhoodMatrix) #Amount of Regions
-N_edges <- sum(NeighborhoodMatrix) #Amount of Edges
-node1 <- vector(mode="numeric", length=N_edges)
-node2 <- vector(mode="numeric", length=N_edges)
-iEdge <- 1 #Helpvector
-for (j in 1:nrow(NeighborhoodMatrix)) {
-  NumEdge <- sum(NeighborhoodMatrix[j,]) #Sum Neighbors
-  TypeEdge <- which(NeighborhoodMatrix[j,]!=0) #Check which Region is Neighbor 
-  node1[iEdge:(iEdge+NumEdge-1)] <- rep(j,NumEdge) 
-  node2[iEdge:(iEdge+NumEdge-1)] <- TypeEdge 
-  iEdge <- iEdge+NumEdge #Update Help Vector
-}
+  # Get upper triangular part (excluding diagonal)
+  upper_tri <- as.matrix(NeighborhoodMatrix) * 
+    upper.tri(NeighborhoodMatrix, diag = FALSE) 
+  
+  
+  N <- nrow(NeighborhoodMatrix) #Amount of Regions
+  N_edges <- sum(upper_tri) #Amount of Edges
+  
+  # Get row and column indices of 1s
+  edges <- which(upper_tri == 1, 
+                 arr.ind = TRUE)
+  
+  #save results in vector (orderd)
+  node1 <- edges[order(edges[,1]),1]
+  node2 <- edges[order(edges[,2]),2]
+  
+  node1Names <- rownames(NeighborhoodMatrix)[node1] 
+  node2Names <- rownames(NeighborhoodMatrix)[node2] 
 
-node1Names <- rownames(NeighborhoodMatrix)[node1] 
-node2Names <- rownames(NeighborhoodMatrix)[node2] 
-
-return (list("N"=N,"N_edges"=N_edges,"node1"=node1,"node2"=node2,
-             "node1Names"=node1Names, node2Names=node2Names))
+  return(list("N"= N,"N_edges"= N_edges,
+              "node1"= node1, 
+              "node2"= node2,
+              "node1Names"= node1Names, 
+              "node2Names"= node2Names))
 } 
 
 #Compute Scaling Factor for BYM2 Model
