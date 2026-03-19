@@ -11,6 +11,7 @@ load(file = file.path(getwd(),"Data/TotalData.RData"))
 
 
 ##### Population Projections ###################################################
+## NOTE RUN 06 first to obtain samples for the population (file too big to be uploaded to git)
 load(file = file.path(getwd(),"Results/PopTrajectories_RaTotal_24.RData"))
 
 PopTrajectories_Total <- PopTrajectories_Male + PopTrajectories_Female
@@ -78,11 +79,6 @@ PopFC_Total_Plot <-
                                         linetype = c("dashed","solid"),
                                         color = "black")))
 
-ggsave(filename = file.path(getwd(),"Pictures/PopTotal_OF.pdf"),
-       plot = PopFC_Total_Plot, 
-       device = "pdf", dpi = 500, 
-       width = 16, height = 12)
-
 ###### 2. Plot Population Pyramid #############################################
 # @Region should be number between 1 and 13
 # @Year should be either 2029, 2034, 2039 or 2044
@@ -92,10 +88,6 @@ PP_Bayreuth <-
                     dataM = PopTrajectories_Male, 
                     Region = 2, YearUpper = 2044) #select region and year
 
-
-ggsave(filename = file.path(getwd(),"Pictures/PopPyramid.pdf"),
-       plot = PP_Bayreuth, device = "pdf", dpi = 500, 
-       width = 16, height = 12)
 
 
 ##### 4. Map plot of Difference in Population Estimates ########################
@@ -205,14 +197,8 @@ Joined_Map_Plot <- cowplot::plot_grid(PopDiff_Plot,
                                       ncol = 2)
 
 
-ggsave(filename = file.path(getwd(),"Pictures/PopDiff_Map.pdf"),
-       plot = Joined_Map_Plot, 
-       device = "pdf", dpi = 500, 
-       width = 16, height = 7)
-
-
-  
 ##### 5. Age Migration Schedule ################################################
+
 ### 5.1 Males ###
 OutMigSchedule_Plot <- 
   AgeSpecific_Mig_Male %>% 
@@ -313,18 +299,6 @@ InMigSchedulePlot_F <-
         axis.title = element_text(size = 20 , face = "bold"),
         legend.title = element_text(size = 20, face ="bold"),
         legend.position = "bottom")
-
-
-ggsave(filename = file.path(getwd(),"Pictures/Ra_Out.pdf"),
-       plot = OutMigSchedule_Plot, 
-       device = "pdf", dpi = 500, 
-       width = 16, height = 12)
-
-
-ggsave(filename = file.path(getwd(),"Pictures/Ra_Out_F.pdf"),
-       plot = OutMigSchedule_Plot_F, 
-       device = "pdf", dpi = 500, 
-       width = 16, height = 12)
 
 
 #### 6. Net Migration Rates ####################################################
