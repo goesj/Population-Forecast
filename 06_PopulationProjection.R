@@ -180,11 +180,11 @@ for(s in 1:Iter){ #all iterations
       LifeTable_F <- LifeTableFun(Age = AgesUpper,
                                   MortalityRate = Mort_Rate_Array_F[,j + 7, r, s], 
                                   radix = 1)
-      #1.1.2) Get Fertility Rate 
+      #2.1.2) Get Fertility Rate 
       FertRates <- c(0,0,0, Fert_Rate_Array_Direct[, j+1, r, s], rep( 0, 9))
       
       
-      #2.1 Population Forecast Females
+      #2.1.3 Population Forecast Females
       PopTrajectories_Female[,h + 1, r, s] <- 
         (Leslie(L = LifeTable_F[,"Lx"], f = FertRates, SRB = SRB, l0 = LifeTable_F[1,"lx"], 
                 sex ="Female")%*%(PopTrajectories_Female[,h, r, s]+
@@ -400,10 +400,9 @@ ResTable <-
             y = Pop24) %>% 
   mutate("et" = y-Population, #absolut error
          "pt" = 100*et/Population) %>% #percentage error 
-  reframe("MAE" = sqrt(mean(et^2)),
-          "RMSE" = mean(abs(et)),
+  reframe("MAE" = mean(abs(et)),
+          "RMSE" = sqrt(mean(et^2)),
           "MAPE" = mean(abs(pt)), #see Hyndman, Koehler
-          "RMSPE" = sqrt(mean(pt^2)),
           "Cov" = mean(dplyr::between(Population, ymin, ymax)))
 
 
